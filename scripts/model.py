@@ -15,10 +15,11 @@ class Model:
         Initializes model instance and gets needed data from instagram
         :return: None
         """
+        print('starting session and getting headers ... ', end='')
         self.session = requests.Session()
 
         self.get_initial_headers()
-        print()
+        print(colored('DONE', 'green'))
 
     def get_initial_headers(self):
         """

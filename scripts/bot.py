@@ -10,6 +10,7 @@ import _thread
 bot = telebot.TeleBot(config.TOKEN)
 model = None
 
+
 def init():
     """
     Initial method for bot start
@@ -133,8 +134,14 @@ def get_unfollowers_number(message, user_id, username):
                                   reply_markup=None)
 
     keyboard = types.InlineKeyboardMarkup()
-    keyboard.add(types.InlineKeyboardButton(text=f'gimme list', callback_data=f'list_unfollowing_id:{user_id}_page:0'),
-                 types.InlineKeyboardButton(text=f'another one', callback_data=f'get_instagram_username'))
+
+    if doesnt_follow_back.__len__() > 0:
+        keyboard.add(types.InlineKeyboardButton(text=f'gimme list',
+                                                callback_data=f'list_unfollowing_id:{user_id}_page:0'),
+                     types.InlineKeyboardButton(text=f'another one',
+                                                callback_data=f'get_instagram_username'))
+    else:
+        keyboard.add(types.InlineKeyboardButton(text=f'another one', callback_data=f'get_instagram_username'))
 
     bot.send_message(chat_id=message.chat.id,
                      text=f'doesnt follow u back: {doesnt_follow_back.__len__()} users',
@@ -162,20 +169,22 @@ def send_unfollowing_links_list(call):
 
     keyboard = types.InlineKeyboardMarkup()
 
-    next_page = types.InlineKeyboardButton(text=f'next', callback_data=f'list_unfollowing_id:{user_id}_page:{page+1}')
-    previous_page = types.InlineKeyboardButton(text=f'prev', callback_data=f'list_unfollowing_id:{user_id}_page:{page-1}')
-    create_exception = types.InlineKeyboardButton(text=f'create exceptions', callback_data=f'create_exceptions_for_user_id:{user_id}')
+    next_page_btn = types.InlineKeyboardButton(text=f'next', callback_data=f'list_unfollowing_id:{user_id}_page:{page+1}')
+    previous_page_btn = types.InlineKeyboardButton(text=f'prev', callback_data=f'list_unfollowing_id:{user_id}_page:{page-1}')
+    create_exception_btn = types.InlineKeyboardButton(text=f'create exceptions', callback_data=f'create_exceptions_for_user_id:{user_id}')
+    main_menu_btn = types.InlineKeyboardButton(text=f'main menu', callback_data=f'main_menu_edit:1')
 
     if 0 < page < pages:
-        keyboard.add(previous_page, next_page)
+        keyboard.add(previous_page_btn, next_page_btn)
     if page==0 and page < pages:
-        keyboard.add(next_page)
+        keyboard.add(next_page_btn)
     if page > 0 and page == pages:
-        keyboard.add(previous_page)
+        keyboard.add(previous_page_btn)
     if page==1:
         pass
 
-    keyboard.add(create_exception)
+    keyboard.add(create_exception_btn)
+    keyboard.add(main_menu_btn)
     keyboard.add(types.InlineKeyboardButton(text=f'another one', callback_data=f'get_instagram_username'))
 
     bot.edit_message_text(chat_id=call.message.chat.id,
@@ -199,3 +208,43 @@ def get_not_following_back_accounts_page(not_following_back, page):
     pages = floor(not_following_back.__len__() / config.ACCOUNTS_IN_LIST)
 
     return pages, not_following_back_page
+
+
+def show_main_menu(message, edit=False):
+    """
+    Generates main menu for user
+    :param message: message instance
+    :param edit: boolean value, indicates if message need to be edited
+    :return: None
+    """
+
+    msg = 'main menu'
+    keyboard = types.InlineKeyboardMarkup()
+
+    update_btn = types.InlineKeyboardButton(text=f'update', callback_data=f'main_menu_edit:1')
+
+    keyboard.add(update_btn)
+
+    if not edit:
+        bot.send_message(chat_id=message.chat.id,
+                         text=msg,
+                         reply_markup=keyboard)
+    else:
+        bot.edit_message_text(chat_id=message.chat.id,
+                              message_id=message.message_id,
+                              text=msg)
+        bot.edit_message_reply_markup(chat_id=message.chat.id,
+                                      message_id=message.message_id,
+                                      reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call:call.data.split('main_menu_edit:').__len__() > 1)
+def show_main_menu_handler(call):
+    """
+    Handles main menu callback query
+    :param call: callback instance
+    :return:None
+    """
+    is_edit = bool(call.data.split('main_menu_edit:')[1])
+
+    show_main_menu(call.message, edit=is_edit)
