@@ -1,5 +1,6 @@
 import config
 import datetime
+from emoji import emojize
 from math import floor
 from model import Model
 import telebot
@@ -33,10 +34,10 @@ def start_handler(message):
     :param message: message instance
     :return: None
     """
-    bot.send_message(chat_id=message.chat.id, text='hey, glad to see you here!')
+    bot.send_message(chat_id=message.chat.id, text=f'hey, glad to see you here!{emojize(":relaxed:", use_aliases=True)}')
     bot.send_message(chat_id=message.chat.id, text=f'you can check people who doesn\'t '
                                                    f'follow you back on instagram. Type instagram nickname, '
-                                                   f'and we\'ll start:')
+                                                   f'and we\'ll start {emojize(" :point_down:", use_aliases=True)}')
 
     bot.register_next_step_handler_by_chat_id(chat_id=message.chat.id, callback=get_instagram_username)
 
@@ -50,11 +51,11 @@ def get_instagram_username(message):
     instagram_link = f'https://instagram.com/{message.text}'
     keyboard = types.InlineKeyboardMarkup()
 
-    keyboard.row(types.InlineKeyboardButton(text=f'yes', callback_data=f'get_overall_account_information'),
-                 types.InlineKeyboardButton(text=f'no', callback_data=f'get_instagram_username'))
+    keyboard.row(types.InlineKeyboardButton(text=emojize(" :white_check_mark:", use_aliases=True), callback_data=f'get_overall_account_information'),
+                 types.InlineKeyboardButton(text=emojize(" :negative_squared_cross_mark:", use_aliases=True), callback_data=f'get_instagram_username'))
 
     bot.send_message(chat_id=message.chat.id,
-                     text=f'is this your profile?\n\n{instagram_link}',
+                     text=f'is this your profile?{emojize(" :scream:", use_aliases=True)}\n\n{instagram_link}',
                      reply_markup=keyboard)
 
 
@@ -68,7 +69,7 @@ def get_instagram_username_handler(call):
     bot.edit_message_reply_markup(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id,
                                   reply_markup=None)
-    bot.send_message(chat_id=call.message.chat.id, text=f'type instagram nickname:')
+    bot.send_message(chat_id=call.message.chat.id, text=f'type instagram nickname {emojize(" :point_down:", use_aliases=True)}')
     bot.register_next_step_handler_by_chat_id(chat_id=call.message.chat.id, callback=get_instagram_username)
 
 
@@ -85,20 +86,20 @@ def get_overall_information(call):
     msg = ''
     keyboard = types.InlineKeyboardMarkup()
     if not user_id:
-        msg = 'u lied 2 me! issa isnt valid account! try again'
-        keyboard.row(types.InlineKeyboardButton(text=f'Enter username again', callback_data=f'get_instagram_username'))
+        msg = f'u lied 2 me! issa isnt valid account!{emojize(" :triumph:", use_aliases=True)} try again'
+        keyboard.row(types.InlineKeyboardButton(text=f'{emojize("", use_aliases=True)}Enter username again', callback_data=f'get_instagram_username'))
     else:
         time_takes = datetime.timedelta(seconds=(following + followers)/20)
-        msg = f'okay, here\'s what we got\n' \
+        msg = f'okay, here\'s what we got{emojize(" :collision:", use_aliases=True)}\n' \
               f'{"*" * 20}\n' \
-              f'your user id is {user_id}\n' \
-              f'followers:{followers}\n' \
-              f'following: {following}\n' \
+              f'{emojize(" :bust_in_silhouette:", use_aliases=True)}your user id is {user_id}\n' \
+              f'{emojize(" :busts_in_silhouette:", use_aliases=True)}followers:{followers}\n' \
+              f'{emojize(" :tophat:", use_aliases=True)}following: {following}\n' \
               f'{"*" * 20}\n' \
-              f'calculations will take approximately {time_takes}\n' \
+              f'{emojize("", use_aliases=True)}calculations will take approximately {time_takes}\n' \
               f'Continue?'
-        keyboard.row(types.InlineKeyboardButton(text=f'yes', callback_data=f'get_unfollowers_id:{user_id}_username:{username}'),
-                     types.InlineKeyboardButton(text=f'no', callback_data=f'get_instagram_username'))
+        keyboard.row(types.InlineKeyboardButton(text=f'{emojize(" :white_check_mark:", use_aliases=True)}', callback_data=f'get_unfollowers_id:{user_id}_username:{username}'),
+                     types.InlineKeyboardButton(text=f'{emojize(" :negative_squared_cross_mark:", use_aliases=True)}', callback_data=f'get_instagram_username'))
     bot.edit_message_text(chat_id=call.message.chat.id,
                           message_id=call.message.message_id,
                           text=msg,
@@ -136,15 +137,15 @@ def get_unfollowers_number(message, user_id, username):
     keyboard = types.InlineKeyboardMarkup()
 
     if doesnt_follow_back.__len__() > 0:
-        keyboard.add(types.InlineKeyboardButton(text=f'gimme list',
+        keyboard.add(types.InlineKeyboardButton(text=f'{emojize(" :heavy_plus_sign:", use_aliases=True)}gimme list',
                                                 callback_data=f'list_unfollowing_id:{user_id}_page:0'),
-                     types.InlineKeyboardButton(text=f'another one',
+                     types.InlineKeyboardButton(text=f'{emojize(" :pencil2:", use_aliases=True)}another one',
                                                 callback_data=f'get_instagram_username'))
     else:
-        keyboard.add(types.InlineKeyboardButton(text=f'another one', callback_data=f'get_instagram_username'))
+        keyboard.add(types.InlineKeyboardButton(text=f'{emojize(" :pencil2:", use_aliases=True)}another one', callback_data=f'get_instagram_username'))
 
     bot.send_message(chat_id=message.chat.id,
-                     text=f'doesnt follow u back: {doesnt_follow_back.__len__()} users',
+                     text=f'{emojize(" :pig_nose:", use_aliases=True)}doesnt follow u back: {doesnt_follow_back.__len__()} users',
                      reply_markup=keyboard)
 
 
@@ -161,7 +162,7 @@ def send_unfollowing_links_list(call):
     not_following_back = model.get_unfollowers(user_id=user_id, username='', download=False)
     pages, page_content = get_not_following_back_accounts_page(not_following_back, page)
 
-    msg = f'Here\'s the list of accounts who doesn\'t follow u, page {page+1}:\n' \
+    msg = f'Here\'s the list of accounts who doesn\'t follow u, page {page+1}/{pages+1}:\n' \
           f'{"*" * 20}\n'
 
     for acc in page_content:
@@ -169,10 +170,14 @@ def send_unfollowing_links_list(call):
 
     keyboard = types.InlineKeyboardMarkup()
 
-    next_page_btn = types.InlineKeyboardButton(text=f'next', callback_data=f'list_unfollowing_id:{user_id}_page:{page+1}')
-    previous_page_btn = types.InlineKeyboardButton(text=f'prev', callback_data=f'list_unfollowing_id:{user_id}_page:{page-1}')
-    create_exception_btn = types.InlineKeyboardButton(text=f'create exceptions', callback_data=f'create_exceptions_for_user_id:{user_id}')
-    main_menu_btn = types.InlineKeyboardButton(text=f'main menu', callback_data=f'main_menu_edit:1')
+    next_page_btn = types.InlineKeyboardButton(text=emojize(" :arrow_forward:", use_aliases=True),
+                                               callback_data=f'list_unfollowing_id:{user_id}_page:{page+1}')
+    previous_page_btn = types.InlineKeyboardButton(text=emojize(" :arrow_backward:", use_aliases=True),
+                                                   callback_data=f'list_unfollowing_id:{user_id}_page:{page-1}')
+    create_exception_btn = types.InlineKeyboardButton(text=f'{emojize(" :heavy_exclamation_mark:", use_aliases=True)}create exceptions',
+                                                      callback_data=f'create_exceptions_for_user_id:{user_id}')
+    main_menu_btn = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}main menu',
+                                               callback_data=f'main_menu_edit:1')
 
     if 0 < page < pages:
         keyboard.add(previous_page_btn, next_page_btn)
@@ -184,8 +189,8 @@ def send_unfollowing_links_list(call):
         pass
 
     keyboard.add(create_exception_btn)
+    keyboard.add(types.InlineKeyboardButton(text=f'{emojize(" :pencil2:", use_aliases=True)}another one', callback_data=f'get_instagram_username'))
     keyboard.add(main_menu_btn)
-    keyboard.add(types.InlineKeyboardButton(text=f'another one', callback_data=f'get_instagram_username'))
 
     bot.edit_message_text(chat_id=call.message.chat.id,
                           message_id=call.message.message_id,
@@ -221,7 +226,7 @@ def show_main_menu(message, edit=False):
     msg = 'main menu'
     keyboard = types.InlineKeyboardMarkup()
 
-    update_btn = types.InlineKeyboardButton(text=f'update', callback_data=f'main_menu_edit:1')
+    update_btn = types.InlineKeyboardButton(text=f'{emojize(" :repeat:", use_aliases=True)}update', callback_data=f'main_menu_edit:1')
 
     keyboard.add(update_btn)
 
