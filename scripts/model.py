@@ -1,5 +1,5 @@
 import config
-import db_handler
+from db_handler import DbHandler
 import requests
 import json
 from termcolor import colored
@@ -20,6 +20,7 @@ class Model:
 
         self.get_initial_headers()
         print(colored('DONE', 'green'))
+        self.db_handler = DbHandler()
 
     def get_initial_headers(self):
         """
@@ -31,14 +32,14 @@ class Model:
 
         auth_headers = {
             'referer': 'https://www.instagram.com/accounts/login',
-            'X-CSRFToken': res.cookies['csrftoken'],
+            'X-CSRFToken': res.cookies['csrftoken']
         }
         auth = {
             'username': 'oleyezonme',
             'enc_password': '#PWD_INSTAGRAM_BROWSER:10:1594726296:AWlQABfIIa5xYHPSGdhR+6LpqTnJ5D5E+wpX5zdx4yM9/DF8PEURwsy8VViGsAdxdTk/uTuPovqPNHNlCZRf+SxINp1Cs7I3r1QLgW7WrpJkTrneD3A2HuZG5V9yhJqNLYVh7gEm1gkhO/D2VQ==',
             'optIntoOneTap': 'false'
         }
-        self.session.post(q, data=auth, headers=auth_headers)
+        res = self.session.post(q, data=auth, headers=auth_headers)
         self.session.headers['X-CSRFToken'] = res.cookies['csrftoken']
 
     def specify_needed_headers_to_session(self):
@@ -99,16 +100,36 @@ class Model:
         :param user_id: user instagram id
         :param username: instagram username
         :param download: flag which says if its need to download data from instagram, or get from dump
-        :return: list of tuples with accounts who doesn't follow user
+        :return: list of tuples with accounts who doesn't follow user in format (user_id, username)
+        """
+        not_following_back_wo_whitelist = []    # wo - without
+        whitelist = self.get_user_whitelist(user_id)
+
+        not_following_back = self.get_full_list_of_unfollowers(user_id=user_id, username=username, download=download)
+
+        if whitelist.__len__() > 0:
+            not_following_back_wo_whitelist = self.get_not_following_back_wo_whitelist(not_following_back, whitelist)
+        else:
+            not_following_back_wo_whitelist = not_following_back
+
+        return not_following_back_wo_whitelist
+
+    def get_full_list_of_unfollowers(self, user_id, username, download=True):
+        """
+        Returns full list of accounts who doesn't follow back user
+        :param user_id: user's instagram id
+        :param username: user's instagram username
+        :param download: boolean flag, indicates data need to be downloaded, or got from dump
+        :return: full list of accounts eho doesn't follow user back
         """
         not_following_back = []
-
         if download:
             print('\n')
             print('-' * 30)
 
             followers = self.download_followers_list(user_id, username)
             following = self.download_accounts_user_following_list(user_id, username)
+
 
             print(f'followers: {followers.__len__()}')
             print(f'following: {following.__len__()}')
@@ -122,12 +143,40 @@ class Model:
                     not_following_back.append(followee)
 
             print(colored('DONE', 'green'))
-            self.dump_not_following_back_list(user_id, not_following_back)
+            self.dump_full_not_following_back_list(user_id, not_following_back)
         else:
-            with open(f'{config.WORKING_DIR.replace("scripts", "")}client_data/{user_id}/{user_id}_not_following_back.pickle', 'rb') as f:
+            with open(
+                    f'{config.WORKING_DIR.replace("scripts", "")}client_data/{user_id}/{user_id}_not_following_back_full.pickle',
+                    'rb') as f:
                 not_following_back = pickle.load(f)
 
         return not_following_back
+
+    def get_user_whitelist(self, client_instagram_id):
+        """
+        Returns list with instagram account ids which was added by user
+        for specified account as whitelist
+        :param client_instagram_id: instagram account id
+        :return: list with instagram ids, 'whitelist'
+        """
+        whitelist = self.db_handler.get_whitelist_for_instagram_id(client_instagram_id)
+
+        return whitelist
+
+    def get_not_following_back_wo_whitelist(self, not_following_back, whitelist):
+        """
+        Deletes from list of accounts who doesn't follow back those, who r in whitelist
+        :param not_following_back: list of accounts who doesn't follow back
+        :param whitelist: list of user's whitelist
+        :return: list of accounts who doesn't follow, with whitelist excluded
+        """
+        not_following_back_wo_whitelist = []
+
+        for account in not_following_back:
+            if account[0] not in [acc[0].__str__() for acc in whitelist]:
+                not_following_back_wo_whitelist.append(account)
+
+        return not_following_back_wo_whitelist
 
     def download_followers_list(self, user_id, username):
         """
@@ -249,7 +298,7 @@ class Model:
                   'wb') as f:
             pickle.dump(following, f)
 
-    def dump_not_following_back_list(self, user_id, not_following_back):
+    def dump_full_not_following_back_list(self, user_id, not_following_back):
         """
         Dumps to disk list of people who doesn't follow back user with pickle module
         :param user_id: user instagram id
@@ -257,7 +306,30 @@ class Model:
         :return: None
         """
         path = config.WORKING_DIR.replace(
-            'scripts', f'client_data/{user_id}/{user_id}_not_following_back.pickle')
+            'scripts', f'client_data/{user_id}/{user_id}_not_following_back_full.pickle')
         with open(path, 'wb') as f:
             pickle.dump(not_following_back, f)
+
+    def dump_not_following_without_whitelist(self,user_id, not_following_back_wo_whitelist):
+        """
+        Dumps data about accounts who doesb't follow user back to pickle file,
+        with whitelist excluded
+        :param user_id: user instagram id
+        :param not_following_back_wo_whitelist: list with users who doesn't follow user back
+        :return: None
+        """
+        path = f'{config.WORKING_DIR.replace("scripts", "")}client_data/{user_id}/{user_id}' \
+               f'_not_following_back_without_whitelist.pickle'
+        with open(path, 'wb') as f:
+            pickle.dump(not_following_back_wo_whitelist, f)
+
+    def add_account_to_whitelist(self, client_id, client_telegram_id, account_id):
+        """
+        Calls db handler's method which adds account to whitelist
+        :param client_id: client instagram id
+        :param client_telegram_id:client telegram id
+        :param account_id: instagram id of account which need 2 b added to whitelist
+        :return:None
+        """
+        self.db_handler.add_account_to_whitelist(client_id, client_telegram_id, account_id)
 

@@ -174,8 +174,8 @@ def send_unfollowing_links_list(call):
                                                callback_data=f'list_unfollowing_id:{user_id}_page:{page+1}')
     previous_page_btn = types.InlineKeyboardButton(text=emojize(" :arrow_backward:", use_aliases=True),
                                                    callback_data=f'list_unfollowing_id:{user_id}_page:{page-1}')
-    create_exception_btn = types.InlineKeyboardButton(text=f'{emojize(" :heavy_exclamation_mark:", use_aliases=True)}create exceptions',
-                                                      callback_data=f'create_exceptions_for_user_id:{user_id}')
+    create_exception_btn = types.InlineKeyboardButton(text=f'{emojize(" :heavy_exclamation_mark:", use_aliases=True)}create whitelist',
+                                                      callback_data=f'show_create_ex_msg_for_user_id:{user_id}')
     main_menu_btn = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}main menu',
                                                callback_data=f'main_menu_edit:1')
 
@@ -191,6 +191,97 @@ def send_unfollowing_links_list(call):
     keyboard.add(create_exception_btn)
     keyboard.add(types.InlineKeyboardButton(text=f'{emojize(" :pencil2:", use_aliases=True)}another one', callback_data=f'get_instagram_username'))
     keyboard.add(main_menu_btn)
+
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          message_id=call.message.message_id,
+                          text=msg,
+                          reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split('show_create_ex_msg_for_user_id:').__len__() > 1)
+def show_create_whitelist_message_for_user_handler(call):
+    """
+    Shows user message before creating whitelist for
+        accounts who doesn't follow him back
+    :param call: callback instance
+    :return:None
+    """
+    instagram_user_id = call.data.split('show_create_ex_msg_for_user_id:')[1]
+    msg = f'{emojize(" :heavy_exclamation_mark:", use_aliases=True)}if u\'ll create whitelist for this account,' \
+          f' it\'ll b matched wit ur telegram acc. Do o wanna continue?'
+    keyboard = types.InlineKeyboardMarkup()
+
+    keyboard.add(types.InlineKeyboardButton(text=emojize(" :white_check_mark:", use_aliases=True), callback_data=f'create_whitelist_user_id:{instagram_user_id}_page:0'),
+                 types.InlineKeyboardButton(text=emojize(" :negative_squared_cross_mark:", use_aliases=True), callback_data=f'main_menu_edit:1'))
+
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          message_id=call.message.message_id,
+                          text=msg,
+                          reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split('create_whitelist_user_id:').__len__() > 1)
+def create_whitelist_user_handler(call):
+    """
+    Shows user page with buttons to add accounts to exception list
+    :param call: callback instance
+    :return:None
+    """
+    instagram_user_id = call.data.split('create_whitelist_user_id:')[1].split('_')[0]
+    page = int(call.data.split('_page:')[1])
+
+    doesnt_follow_back_accs = model.get_unfollowers(user_id=instagram_user_id, username='', download=False)
+    pages, page_of_not_followers = get_not_following_back_accounts_page(doesnt_follow_back_accs, page)
+
+    msg = f'here\'s ur unfollowers list. pres to button to add account to white list\n' \
+          f'page {page+1}/{pages+1}\n'
+    keyboard = types.InlineKeyboardMarkup()
+
+    for acc in page_of_not_followers:
+        keyboard.add(types.InlineKeyboardButton(text=acc[1], callback_data=f'add_to_whitelist_client:{instagram_user_id}_id:{acc[0]}'))
+
+    next_page_btn = types.InlineKeyboardButton(text=emojize(" :arrow_forward:", use_aliases=True),
+                                               callback_data=f'create_whitelist_user_id:{instagram_user_id}_page:{page + 1}')
+    previous_page_btn = types.InlineKeyboardButton(text=emojize(" :arrow_backward:", use_aliases=True),
+                                                   callback_data=f'create_whitelist_user_id:{instagram_user_id}_page:{page - 1}')
+
+    main_menu_btn = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}main menu',
+                                               callback_data=f'main_menu_edit:1')
+
+    if 0 < page < pages:
+        keyboard.add(previous_page_btn, next_page_btn)
+    if page == 0 and page < pages:
+        keyboard.add(next_page_btn)
+    if page > 0 and page == pages:
+        keyboard.add(previous_page_btn)
+    if page == 1:
+        pass
+
+    keyboard.add(main_menu_btn)
+
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          message_id=call.message.message_id,
+                          text=msg,
+                          reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split('add_to_whitelist_client:').__len__() > 1)
+def add_to_whitelist_account_handler(call):
+    """
+    Adds account to white list for specified client instagram id
+    :param call: callback instance
+    :return: None
+    """
+    client_instagram_id = call.data.split('add_to_whitelist_client:')[1].split('_')[0]
+    following_acc_instagram_id = call.data.split('_id:')[1]
+
+    model.add_account_to_whitelist(client_instagram_id, call.message.chat.id, following_acc_instagram_id)
+
+    msg = 'account added!'
+    keyboard = types.InlineKeyboardMarkup()
+
+    keyboard.add(types.InlineKeyboardButton(text=f'add another one', callback_data=f'create_whitelist_user_id:{client_instagram_id}_page:0'))
+    keyboard.add(types.InlineKeyboardButton(text=f'main menu', callback_data=f'main_menu_edit:1'))
 
     bot.edit_message_text(chat_id=call.message.chat.id,
                           message_id=call.message.message_id,
